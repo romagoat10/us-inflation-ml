@@ -40,7 +40,9 @@ Same code and settings as the exploratory runs below, on the FRED-MD vintage of 
 
 **4. After 2020, models that learn from recent inflation beat the base-effect benchmark by 13–15%, and the linear AR12 does it as well as gradient boosting** (`results/fredmd_change/figure_rolling.png`). The 2021–23 episode rewards using recent dynamics, but it does not reward machine learning in particular.
 
-**5. Adding information from 126 series did not help.** The factor-augmented AR (FAAR) and GB+F were no better, and FAAR was often worse than the plain AR. My factor step is simple: principal components, with missing values set to the mean, and no outlier treatment. Better factor methods are the obvious next test; I did not change anything after seeing these results.
+**5. Adding information from 126 series did not help.** The factor-augmented AR (FAAR) and GB+F were no better, and FAAR was often worse than the plain AR. The pre-specified factor step is simple (principal components, missing values set to the mean, no outlier treatment); point 6 repeats the run with the standard FRED-MD treatment.
+
+**6. Robustness: the standard FRED-MD factor step does not change the conclusions.** I repeated the run with the McCracken–Ng treatment: outliers (more than 10 interquartile ranges from the median) set to missing, gaps filled by the EM algorithm, ragged edge handled by least squares (`$env:US_FACTORS = "em"`, results in `results/fredmd_change_em/`). It removes 162 outliers by 2025, 80 of them in 2020–21. After 2020 it cuts FAAR's error by 16–23% and GB+F's by up to 12%, because the pandemic outliers had distorted the simple factors. Before 2020 nothing changes by more than 0.04. GB at 3 months after 2020 is still the only significant win over RW-B, and GB+F is still no better than GB without factors.
 
 **Conclusion so far:** for US inflation, the headline "machine learning beats the random walk" is mostly the base effect. Any honest comparison should include a benchmark that knows it.
 
@@ -164,14 +166,14 @@ Predicting the change from today fixes both, and is standard in the forecasting 
 ## Limitations
 
 - Final revised data, not the data available in real time (CPI is barely revised, but payrolls and industrial production are), and no allowance for publication lags.
-- A simple factor step (principal components with mean-filled gaps, no outlier treatment), and tree settings chosen once and never tuned. Both may understate what machine learning can do. That is a fair criticism, but tuning after seeing the results would be worse.
+- Plain principal-component factors (5 of them) and tree settings chosen once and never tuned. The FRED-MD outlier and EM treatment does not change the conclusions, but targeted predictors or tuned models might. Tuning after seeing the results would be worse, so it needs a hold-out period.
 - One country so far in this setup (the Kazakhstan study predates the base-effect benchmark).
 - The Holm correction is applied across models within each horizon and period, not across all 12 horizon-period cells.
 
 ## Next steps
 
 1. Real-time FRED-MD vintages (the St. Louis Fed publishes every monthly vintage since 1999).
-2. Better factor methods (FRED-MD's own outlier and missing-value treatment, targeted predictors) and tuned models, tested on a hold-out period.
+2. Targeted predictors, a data-driven number of factors, and tuned models, tested on a hold-out period.
 3. Add survey inflation expectations (Michigan, SPF) and neural networks.
 4. Apply the base-effect benchmark to Kazakhstan and the UK to see if the finding holds in other economies.
 

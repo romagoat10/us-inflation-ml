@@ -28,6 +28,8 @@ with Diebold-Mariano tests (Newey-West variance) against RW.
     python forecast.py            -> results/change/  (main results)
     set US_DATA=fredmd first to use the full FRED-MD file data/2026-10-MD.csv
                                   -> results/fredmd_change/
+    set US_FACTORS=em as well for the McCracken-Ng factor step (outliers + EM)
+                                  -> results/fredmd_change_em/
     python forecast.py levels     -> results/levels/  (trees predict the level; first run)
 """
 from pathlib import Path
@@ -51,7 +53,12 @@ FREDMD = ROOT / "data" / "2026-10-MD.csv"   # FRED-MD vintage downloaded 2026-11
 # "levels": tree models predict the level directly (first run; kept for comparison).
 TARGET = sys.argv[1] if len(sys.argv) > 1 else "change"
 assert TARGET in ("change", "levels")
-OUT = ROOT / "results" / (TARGET if DATASET == "dbnomics" else f"fredmd_{TARGET}")
+# Factor step: "simple" (mean-filled gaps, no outlier treatment; the pre-specified run) or
+# "em" (McCracken and Ng, 2016: outliers removed, gaps filled by the EM algorithm).
+FACTORS = os.environ.get("US_FACTORS", "simple")
+assert FACTORS in ("simple", "em")
+OUT = ROOT / "results" / ((TARGET if DATASET == "dbnomics" else f"fredmd_{TARGET}")
+                          + ("_em" if FACTORS == "em" else ""))
 OUT.mkdir(parents=True, exist_ok=True)
 
 HORIZONS = (1, 3, 6, 12)
@@ -128,10 +135,20 @@ def build(df: pd.DataFrame, tcodes: pd.Series):
 
 
 # ---------------------------------------------------------------- factors
-def factors(panel: pd.DataFrame, upto: pd.Timestamp, k: int) -> pd.DataFrame:
-    """Principal components estimated on data up to `upto` only (no look-ahead).
+_FACTOR_CACHE: dict = {}
 
-    Series with more than 10% missing in the window are dropped; remaining gaps are
+
+def factors(panel: pd.DataFrame, upto: pd.Timestamp, k: int) -> pd.DataFrame:
+    """Principal-component factors estimated on data up to `upto` only (no look-ahead).
+    Factors do not depend on the horizon, so each refit date is computed once."""
+    key = (FACTORS, upto, k)
+    if key not in _FACTOR_CACHE:
+        _FACTOR_CACHE[key] = (factors_em if FACTORS == "em" else factors_simple)(panel, upto, k)
+    return _FACTOR_CACHE[key]
+
+
+def factors_simple(panel: pd.DataFrame, upto: pd.Timestamp, k: int) -> pd.DataFrame:
+    """Series with more than 10% missing in the window are dropped; remaining gaps are
     filled with 0 after standardizing (i.e. with the window mean).
     """
     w = panel.loc[TRAIN_FROM:upto]
@@ -142,6 +159,63 @@ def factors(panel: pd.DataFrame, upto: pd.Timestamp, k: int) -> pd.DataFrame:
     load = vt[:k].T
     zall = ((panel[z.columns] - mu[z.columns]) / sd[z.columns]).fillna(0.0)
     f = zall.values @ load
+    return pd.DataFrame(f, index=panel.index, columns=[f"F{i+1}" for i in range(k)])
+
+
+OUTLIER_IQR = 10      # McCracken and Ng (2016): |x - median| > 10 interquartile ranges
+MIN_OBS = 60          # a series needs at least 5 years of data in the window
+EM_TOL, EM_MAX = 1e-6, 100
+
+
+def remove_outliers(x: pd.DataFrame, ref: pd.DataFrame) -> pd.DataFrame:
+    """Set to missing the values more than 10 IQRs from the median (median/IQR from `ref`)."""
+    med = ref.median()
+    iqr = (ref.quantile(0.75) - ref.quantile(0.25)).replace(0, np.nan)
+    return x.mask((x - med).abs() > OUTLIER_IQR * iqr)
+
+
+def factors_em(panel: pd.DataFrame, upto: pd.Timestamp, k: int) -> pd.DataFrame:
+    """FRED-MD factor step (McCracken and Ng, 2016; Stock and Watson, 2002).
+
+    1. Outliers (more than 10 IQRs from the median) are set to missing.
+    2. Missing values in the window are filled by the EM algorithm: start from the mean,
+       estimate k factors, replace the missing values with the common component, repeat
+       until the fill stops changing.
+    3. Factors for every month, including months after the window and months with gaps
+       (the ragged edge), are the least-squares fit of that month's observed values on the
+       estimated loadings.
+    All statistics use the window TRAIN_FROM..upto only.
+    """
+    w = panel.loc[TRAIN_FROM:upto]
+    w = remove_outliers(w, w)
+    w = w.loc[:, (w.notna().sum() >= MIN_OBS) & (w.std() > 0)]
+    mu, sd = w.mean(), w.std()
+    z = ((w - mu) / sd).values
+    miss = np.isnan(z)
+    zf = np.where(miss, 0.0, z)
+    prev = zf[miss]
+    for it in range(EM_MAX):
+        # top-k principal components from the N x N cross-product (same result as an SVD,
+        # much cheaper because N = 126 is far smaller than the number of months)
+        _, vec = np.linalg.eigh(zf.T @ zf)
+        v = vec[:, -k:]
+        common = zf @ v @ v.T
+        zf[miss] = common[miss]
+        cur = zf[miss]
+        if cur.size == 0 or np.sum((cur - prev) ** 2) <= EM_TOL * np.sum(cur ** 2):
+            break
+        prev = cur
+    factors_em.iterations = it + 1
+    load = np.linalg.eigh(zf.T @ zf)[1][:, ::-1][:, :k]   # loadings, orthonormal columns
+    allz = remove_outliers(panel[w.columns], panel.loc[TRAIN_FROM:upto, w.columns])
+    allz = ((allz - mu) / sd).values
+    obs = ~np.isnan(allz)
+    full = obs.all(axis=1)
+    f = np.full((len(panel), k), np.nan)
+    f[full] = allz[full] @ load                       # complete months: plain projection
+    for i in np.where(~full & (obs.sum(axis=1) >= 2 * k))[0]:
+        ok = obs[i]                                   # months with gaps: least squares
+        f[i] = np.linalg.lstsq(load[ok], allz[i, ok], rcond=None)[0]
     return pd.DataFrame(f, index=panel.index, columns=[f"F{i+1}" for i in range(k)])
 
 
@@ -242,6 +316,7 @@ def main():
     pi12, panel, lags, ar, named = build(df, tcodes)
     missing = [c for c in NAMED_X if c not in df.columns]
     log = [f"Panel: {df.shape[1]} series, {df.index[0]:%Y-%m} to {df.index[-1]:%Y-%m}",
+           f"Factor step: {FACTORS}",
            f"Last month with CPI: {pi12.dropna().index[-1]:%Y-%m}",
            f"Named drivers missing from this vintage: {missing or 'none'}"]
     print("\n".join(log))
