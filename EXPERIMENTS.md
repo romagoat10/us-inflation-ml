@@ -11,8 +11,9 @@ Every experiment in this project, in the order it was run. Each entry gives why 
 | 4 | Base-effect benchmark (RW-B) | 21 US series | `results/change/base_effect.csv` |
 | 5 | **Confirmatory run** | full FRED-MD (126 series) | `results/fredmd_change/` |
 | 6 | Robustness: FRED-MD factor step | full FRED-MD | `results/fredmd_change_em/` |
+| 7 | Follow-up: forecast monthly rates | full FRED-MD | `results/fredmd_monthly_em/` |
 
-Experiments 1–4 are **exploratory**: they shaped the design. Experiment 5 is **confirmatory**: the design was written down in [DESIGN.md](DESIGN.md) before it was run, and it was run once. Experiment 6 is a robustness check added afterwards, and it is labeled as such.
+Experiments 1–4 are **exploratory**: they shaped the design. Experiment 5 is **confirmatory**: the design was written down in [DESIGN.md](DESIGN.md) before it was run, and it was run once. Experiments 6 and 7 were added afterwards, and they are labeled as such.
 
 ---
 
@@ -71,10 +72,22 @@ Experiments 1–4 are **exploratory**: they shaped the design. Experiment 5 is *
 
 ---
 
+## 7. Follow-up: forecast monthly inflation and add it up
+
+- **Why:** the direct models have to learn the base effect, which may handicap the trees. Medeiros et al. (2021) forecast monthly inflation instead, so this is a fairer test of machine learning and a direct link to their paper.
+- **What:** each model forecasts the monthly rate 1 to 12 months ahead (one direct model per month), with the same inputs, settings and FRED-MD factor step as experiment 6. The forecasts are combined with the months already known into 12-month inflation, so every model has the base effect built in. Check: with perfect monthly forecasts the combination reproduces 12-month inflation exactly. Script: `monthly.py`.
+- **Found:**
+  - The tree models beat RW-B significantly in 8 of 48 cells: at 1, 3 and 6 months in 2000–07 (gains of 10–17%) and at 3 months after 2020 (12–13%). None is significantly worse.
+  - The linear model in the same setup (AR-m) never beats RW-B significantly and is within 3% of AR12, so the gain is specific to machine learning.
+  - Forecasting monthly rates makes gradient boosting 10–12% more accurate than the direct version before 2020.
+  - Nothing is significant in 2008–19 or at 12 months.
+- **Led to:** a refined conclusion. Most of machine learning's edge over the random walk is the base effect, but a real, modest edge of 10–17% remains in some periods when the trees forecast monthly rates. This was found after the main run, so it needs confirming on new data.
+
+---
+
 ## Next experiments (planned, not run yet)
 
-1. **Monthly-rate forecasts:** forecast monthly inflation and add the forecasts up, as Medeiros et al. (2021) do. The base effect is then built in, so this is a fairer test of machine learning.
+1. Real-time FRED-MD vintages instead of revised data. This would also confirm experiment 7 on new data.
 2. LASSO, ridge and a small neural network, tuned on a hold-out period before 2000.
-3. Real-time FRED-MD vintages instead of revised data.
-4. Core CPI and PCE inflation as targets.
-5. The same test for the UK and Kazakhstan.
+3. Core CPI and PCE inflation as targets.
+4. The same test for the UK and Kazakhstan.

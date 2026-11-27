@@ -44,7 +44,9 @@ Same code and settings as the exploratory runs below, on the FRED-MD vintage of 
 
 **6. Robustness: the standard FRED-MD factor step does not change the conclusions.** I repeated the run with the McCracken–Ng treatment: outliers (more than 10 interquartile ranges from the median) set to missing, gaps filled by the EM algorithm, ragged edge handled by least squares (`$env:US_FACTORS = "em"`, results in `results/fredmd_change_em/`). It removes 162 outliers by 2025, 80 of them in 2020–21. After 2020 it cuts FAAR's error by 16–23% and GB+F's by up to 12%, because the pandemic outliers had distorted the simple factors. Before 2020 nothing changes by more than 0.04. GB at 3 months after 2020 is still the only significant win over RW-B, and GB+F is still no better than GB without factors.
 
-**Conclusion so far:** for US inflation, the headline "machine learning beats the random walk" is mostly the base effect. Any honest comparison should include a benchmark that knows it.
+**7. Follow-up: when the models forecast monthly inflation and add it up, a modest machine-learning edge appears.** This is how Medeiros et al. (2021) set up their models (`monthly.py`, results in `results/fredmd_monthly_em/`). The tree models then beat RW-B by 10–17% at 1–6 months in 2000–07 and by 12–13% at 3 months after 2020 (significant after the Holm correction). The linear model in the same setup does not, and nothing is significant in 2008–19 or at 12 months. This was found after the main run, so it still needs confirming on new data.
+
+**Conclusion so far:** for US inflation, the headline "machine learning beats the random walk" is mostly the base effect. Beyond it, machine learning keeps a real but modest edge in some periods when it forecasts monthly rates. Any honest comparison should include a benchmark that knows the base effect.
 
 ## Exploratory runs (21-series DBnomics panel)
 
