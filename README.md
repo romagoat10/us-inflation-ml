@@ -2,7 +2,7 @@
 
 **Short answer: not beyond the base effect.** Against a random walk, machine learning looks very good: 15–40% more accurate at 1–3 months ahead. Almost all of that gain is the **base effect**: part of the next months' change in 12-month inflation is known today, because old monthly rates drop out of the 12-month window. A "random walk + base effect" forecast, which is plain arithmetic with no estimation, is just as accurate. On the full FRED-MD panel (126 series, 2000 to September 2026), **no machine learning model beats it significantly at any horizon in any period**, except gradient boosting at 3 months after 2020. The linear 12-lag AR is equally accurate there.
 
-This is the US version of my earlier test on Kazakhstan ([-kazakhstan-inflation-ml](https://github.com/romagoat10/-kazakhstan-inflation-ml)). All code is in Python. The research design was written down before the main run: see [DESIGN.md](DESIGN.md).
+This is the US version of my earlier test on Kazakhstan ([-kazakhstan-inflation-ml](https://github.com/romagoat10/-kazakhstan-inflation-ml)). All code is in Python. The research design was written down before the main run: see [DESIGN.md](DESIGN.md). Every experiment, in order, with why it was run and what it found: [EXPERIMENTS.md](EXPERIMENTS.md).
 
 ![US inflation and forecasts made 3 months earlier](results/fredmd_change/figure_forecasts_h3.png)
 

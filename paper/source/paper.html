@@ -205,5 +205,20 @@
 <li>Stock, J. H. and Watson, M. W. (2007). Why has U.S. inflation become harder to forecast? <i>Journal of Money, Credit and Banking</i>, 39(s1), 3–33.</li>
 </ol>
 
+<div style="break-before: page"></div>
+<h2>Appendix A. Order of the experiments</h2>
+<p>All experiments are listed in the order they were run, so the reader can see which results shaped the design and which tested it. Experiments 1–4 are exploratory. Experiment 5 was pre-specified and run once. Experiment 6 is a robustness check added afterwards. Details are in EXPERIMENTS.md in the repository.</p>
+<table>
+<caption>Table A1. Experiments in order.</caption>
+<tr><th>#</th><th>Experiment</th><th>Why</th><th>Main finding</th><th>Led to</th></tr>
+<tr><td>0</td><td>Kazakhstan pilot</td><td>First test of the idea</td><td>GB beats RW by 10–25%, but 1 of 24 comparisons is significant</td><td>Move to the US for more power</td></tr>
+<tr><td>1</td><td>Trees predict the level (21 series)</td><td>Simplest US setup</td><td>Trees 2–3 times worse than RW at 1 month</td><td>Predict the change instead</td></tr>
+<tr><td>2</td><td>Trees predict the change</td><td>Fix experiment 1</td><td>20–45% better than RW at 1–3 months</td><td>Gains look too good: add a fair linear model</td></tr>
+<tr><td>3</td><td>Linear AR12 check</td><td>Same inputs, no machine learning</td><td>AR12 as accurate as trees at 1–6 months</td><td>Hypothesis: the gain is the base effect</td></tr>
+<tr><td>4</td><td>RW-B benchmark</td><td>Measure the base effect</td><td>RW-B 20–35% better than RW; no model beats it before 2020</td><td>Write the design (DESIGN.md)</td></tr>
+<tr><td>5</td><td>Confirmatory FRED-MD run</td><td>Test the design on new data, once</td><td>Only GB at 3 months after 2020 beats RW-B, AR12 equal; 12-month win does not replicate</td><td>Main result; concern about the factor step</td></tr>
+<tr><td>6</td><td>FRED-MD factor step</td><td>Answer that concern</td><td>Factor models improve after 2020; conclusions unchanged</td><td>Factor results are not caused by the treatment of outliers</td></tr>
+</table>
+
 </body>
 </html>
